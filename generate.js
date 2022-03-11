@@ -27,6 +27,10 @@ function XY(x, y) {
   return { x, y };
 }
 
+function flip(i, width, height) {
+  return (i % width) + (height - Math.floor(i / width)) * width;
+}
+
 /**
  * Assume pixels is a 1D array in row-major order, representing a 2D array of
  * the given width.
@@ -38,7 +42,7 @@ function XY(x, y) {
  *
  * Adding one is required to properly handle vertices on the right edge
  */
-function getPolygons(pixels, width) {
+function getPolygons(pixels, width, height) {
   const polygonsByColor = Array.from({ length: 256 }).map((_) => []);
   const reached = {};
   for (let i = 0; i < pixels.length; i++) {
@@ -59,7 +63,7 @@ function getPolygons(pixels, width) {
     const end = add_xy(i_to_xy(j - 1, width), XY(1, 0));
     polygonsByColor[pixels[i]].push(
       [start, add_xy(start, XY(0, 1)), add_xy(end, XY(0, 1)), end].map((xy) =>
-        xy_to_i(xy, width + 1)
+        flip(xy_to_i(xy, width + 1), width + 1, height)
       )
     );
   }
@@ -106,9 +110,13 @@ function polygonToLatex(polygon, width) {
   );
 }
 
+function colorToLatex([r, g, b], i) {
+  return `P_{${i}}=` + opnameCallToLatex("rgb", r, g, b);
+}
+
 CanvasCycle = {
   processImage: ({ width, height, colors, cycles, pixels }) => {
-    polygons = getPolygons(pixels, width);
+    polygons = getPolygons(pixels, width, height);
     // console.log("Dimensions", width, height);
     // console.log("Polygon count:", polygons.flat().length);
     // console.log("Vertex count:", polygons.flat().flat().length);
@@ -139,15 +147,27 @@ CanvasCycle = {
           }))
         )
         .flat(),
+      {
+        type: "folder",
+        id: "ferrari-colors",
+        title: "Colors",
+        collapsed: true,
+      },
+      ...colors.map((rgb, index) => ({
+        type: "expression",
+        folderId: "ferrari-colors",
+        id: `ferrari-color-${index}`,
+        latex: colorToLatex(rgb, index),
+      })),
     ];
     const state = {
       version: 9,
       graph: {
         viewport: {
-          xmin: -10,
-          ymin: -10,
-          xmax: width + 10,
-          ymax: height + 10,
+          xmin: 0,
+          ymin: 0,
+          xmax: width,
+          ymax: height,
         },
       },
       expressions: {
