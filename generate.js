@@ -117,7 +117,7 @@ function getPolygons(pixels, width, height) {
         currList = [];
       }
       // join up with the first vertex, then add an undefined point
-      currList.push(...polygon, polygon[0], "[][1]");
+      currList.push(...polygon, polygon[0], "u");
     }
     if (currList.length > 0) {
       out[i].push(currList);
@@ -172,6 +172,17 @@ CanvasCycle = {
           loopMode: "PLAY_INDEFINITELY",
           isPlaying: true,
         },
+      },
+      {
+        type: "folder",
+        id: "ferrari-helpers",
+        title: "Helpers",
+        collapsed: true,
+      },
+      {
+        type: "expression",
+        id: `ferrari-undefined`,
+        latex: `u=[][1]`,
       },
       {
         type: "folder",
