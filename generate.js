@@ -1,6 +1,6 @@
 /**
- * This file converts a color-cycled image from http://effectgames.com/demos/canvascycle/
- * to a Desmos graph state.
+ * This file converts a color-cycled image from
+ * http://effectgames.com/demos/canvascycle/ to a Desmos graph state.
  *
  * For some more information about color cycling, see
  * http://www.effectgames.com/effect/article-Old_School_Color_Cycling_with_HTML5.html.
@@ -34,15 +34,6 @@
  *   pixels: [111,107,108,107,107,108,107,106,105,107,...]
  * }
  */
-
-/*
-Paste using:
-
-setTimeout(async () => {
-  const stateString = await navigator.clipboard.readText();
-  Calc.setState(JSON.parse(stateString));
-}, 1000);
-*/
 
 const fs = require("fs");
 
@@ -157,7 +148,7 @@ function brackets(s) {
 }
 
 CanvasCycle = {
-  processImage: ({ width, height, colors, cycles, pixels }) => {
+  processImage: ({ filename, width, height, colors, cycles, pixels }) => {
     polygons = getPolygons(pixels, width, height);
     // console.log("Dimensions", width, height);
     // console.log("Polygon count:", polygons.flat().length);
@@ -171,6 +162,32 @@ CanvasCycle = {
     // );
     const exprList = [
       {
+        type: "text",
+        id: `ferrari-info`,
+        text:
+          "Jungle Waterfall\n\n" +
+          `Original artwork by Mark Ferrari as ILBM file ${filename}, obtained in ` +
+          "JSON form from http://effectgames.com/demos/canvascycle, then " +
+          "converted to Desmos using http://github.com/jared-hughes/DesmosFerrari.\n\n" +
+          `Best viewed at resolutions which are a multiple of ${width}x${height}.\n\n` +
+          "Feel free to use the following expression to view the changing palette.",
+      },
+      {
+        type: "expression",
+        id: "ferrari-all-palette",
+        colorLatex: "P_{all}",
+        latex: "\\left(-100,-100\\right)",
+      },
+      {
+        type: "text",
+        id: "ferrari-script",
+        text:
+          "// Paste this into the developer console (Ctrl+Shift+J) to widen the palette\n" +
+          'const style = document.createElement("style");\n' +
+          "document.head.appendChild(style);\n" +
+          "style.innerHTML = `.dcg-calculator-api-container .dcg-expressions-options-menu { width: 580px; }`",
+      },
+      {
         type: "expression",
         id: `ferrari-time`,
         latex: `t_0=0`,
@@ -180,21 +197,14 @@ CanvasCycle = {
         },
       },
       {
-        type: "folder",
-        id: "ferrari-helpers",
-        title: "Helpers",
-        collapsed: true,
-      },
-      {
         type: "expression",
         id: `ferrari-wrap`,
-        folderId: "ferrari-helpers",
         latex: `W(a,b,c,d,A)=A+[a,b,c,d,a,[][1]]`,
       },
       {
         type: "folder",
         id: "ferrari-polygons",
-        title: "Polygons",
+        title: "Polygons - DO NOT OPEN",
         collapsed: true,
       },
       ...polygons
@@ -216,19 +226,6 @@ CanvasCycle = {
         title: "Colors",
         collapsed: true,
       },
-      {
-        type: "expression",
-        folderId: "ferrari-colors",
-        id: `ferrari-colors-list`,
-        latex:
-          `P_{all}=` +
-          opnameCallToLatex(
-            "rgb",
-            brackets(colors.map(([r, _g, _b]) => r)),
-            brackets(colors.map(([_r, g, _b]) => g)),
-            brackets(colors.map(([_r, _g, b]) => b))
-          ),
-      },
       ...colors.map((rgb, index) => {
         const containedCycle = cycles.find(
           (cycle) => cycle.rate > 0 && cycle.low <= index && index <= cycle.high
@@ -246,7 +243,11 @@ CanvasCycle = {
                     "mod",
                     opnameCallToLatex(
                       "floor",
-                      `\\frac{${60 * containedCycle.rate}t_0}{16384}`
+                      `\\frac{${
+                        60 *
+                        containedCycle.rate *
+                        (containedCycle.reverse == 1 ? 1 : -1)
+                      }t_0}{16384}`
                     ) + `+${index - containedCycle.low}`,
                     containedCycle.high - containedCycle.low + 1
                   ) + `+${containedCycle.low + 1}`
@@ -254,6 +255,19 @@ CanvasCycle = {
             ),
         };
       }),
+      {
+        type: "expression",
+        folderId: "ferrari-colors",
+        id: `ferrari-colors-list`,
+        latex:
+          `P_{all}=` +
+          opnameCallToLatex(
+            "rgb",
+            brackets(colors.map(([r, _g, _b]) => r)),
+            brackets(colors.map(([_r, g, _b]) => g)),
+            brackets(colors.map(([_r, _g, b]) => b))
+          ),
+      },
     ];
     const state = {
       version: 9,
@@ -273,5 +287,15 @@ CanvasCycle = {
   },
 };
 
-const contents = fs.readFileSync("./templates/jungle_waterfall.js");
-eval(contents.toString());
+const args = process.argv.slice(2);
+if (args.length < 2) {
+  console.error(
+    "Expected at least two arguments. Try\n" +
+      "  generate templates/jungle_waterfall.js 'Jungle Waterfall'"
+  );
+} else {
+  globalThis.name = args[1];
+  const filename = args[0];
+  const contents = fs.readFileSync(filename);
+  eval(contents.toString());
+}
