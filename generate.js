@@ -108,16 +108,19 @@ function getPolygons(pixels, width, height) {
   const out = Array.from({ length: 256 }).map((_) => []);
   polygonsByColor.forEach((polygonList, i) => {
     let currList = [];
+    let vertexCount = 0;
     for (let polygon of polygonList) {
       if (polygon.length + 2 >= MAX_VERTICES) {
         throw `Polygon longer than ${MAX_VERTICES} vertices`;
       }
-      if (polygon.length + currList.length + 2 >= MAX_VERTICES) {
+      if (polygon.length + vertexCount + 2 >= MAX_VERTICES) {
         out[i].push(currList);
         currList = [];
+        vertexCount = 0;
       }
       // join up with the first vertex, then add an undefined point
-      currList.push(...polygon, polygon[0], "u");
+      currList.push(`W(${polygon.join(",")})`);
+      vertexCount += polygon.length + 2;
     }
     if (currList.length > 0) {
       out[i].push(currList);
@@ -141,7 +144,9 @@ function polygonToLatex(polygon, width) {
       pointToLatex(
         "1+" + opnameCallToLatex("mod", "i", width + 1),
         opnameCallToLatex("floor", `\\frac{i}{${width + 1}}`)
-      ) + ` \\operatorname{for} i=\\left[${polygon}\\right]`
+      ) +
+        ` \\operatorname{for} i=` +
+        (polygon.length > 1 ? opnameCallToLatex("join", polygon) : polygon)
     )
   );
 }
@@ -181,8 +186,9 @@ CanvasCycle = {
       },
       {
         type: "expression",
-        id: `ferrari-undefined`,
-        latex: `u=[][1]`,
+        id: `ferrari-wrap`,
+        folderId: "ferrari-helpers",
+        latex: `W(a,b,c,d)=[a,b,c,d,a,[][1]]`,
       },
       {
         type: "folder",
