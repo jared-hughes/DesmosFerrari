@@ -1,3 +1,40 @@
+/**
+ * This file converts a color-cycled image from http://effectgames.com/demos/canvascycle/
+ * to a Desmos graph state.
+ *
+ * For some more information about color cycling, see
+ * http://www.effectgames.com/effect/article-Old_School_Color_Cycling_with_HTML5.html.
+ *
+ * The Javascript format is based on the original ILBM
+ * (https://en.wikipedia.org/wiki/ILBM) image format.
+ *
+ * Example:
+ * {
+ *   filename: "V08AM.LBM",
+ *   width: 640,
+ *   height: 480,
+ *   // colors RGB /255
+ *   colors: [[0,0,0],[155,223,255],[127,207,251],[103,191,251],...],
+ *   // cycles seems to be based on CRNG: Colour range
+ *   cycles: [
+ *     ...,
+ *     // no effect
+ *     {reverse:0,rate:0,low:0,high:0},
+ *     // no effect
+ *     {reverse:0,rate:0,low:167,high:174},
+ *     // 16384 → 60fps, so 1536 → 5.625 fps
+ *     // cycle the palette from indices 135 to 143, inclusive
+ *     {reverse:0,rate:1536,low:135,high:143},
+ *     // 16384 → 60fps, so 1380 → 5.0537 fps
+ *     // cycle the palette from indices 127 to 134, inclusive
+ *     {reverse:0,rate:1380,low:127,high:134},
+ *     ...
+ *   ],
+ *   // row-major order of 0-based indices into the colors array
+ *   pixels: [111,107,108,107,107,108,107,106,105,107,...]
+ * }
+ */
+
 /*
 Paste using:
 
@@ -100,18 +137,17 @@ function opnameCallToLatex(name, ...args) {
 function polygonToLatex(polygon, width) {
   return opnameCallToLatex(
     "polygon",
-    "\\left[" +
+    brackets(
       pointToLatex(
-        opnameCallToLatex("mod", "i", width + 1),
+        "1+" + opnameCallToLatex("mod", "i", width + 1),
         opnameCallToLatex("floor", `\\frac{i}{${width + 1}}`)
-      ) +
-      ` \\operatorname{for} i=\\left[${polygon}\\right]` +
-      "\\right]"
+      ) + ` \\operatorname{for} i=\\left[${polygon}\\right]`
+    )
   );
 }
 
-function colorToLatex([r, g, b], i) {
-  return `P_{${i}}=` + opnameCallToLatex("rgb", r, g, b);
+function brackets(s) {
+  return "\\left[" + s + "\\right]";
 }
 
 CanvasCycle = {
@@ -128,6 +164,15 @@ CanvasCycle = {
     //     .map(([_, i]) => i)
     // );
     const exprList = [
+      {
+        type: "expression",
+        id: `ferrari-time`,
+        latex: `t_0=0`,
+        slider: {
+          loopMode: "PLAY_INDEFINITELY",
+          isPlaying: true,
+        },
+      },
       {
         type: "folder",
         id: "ferrari-polygons",
@@ -153,12 +198,44 @@ CanvasCycle = {
         title: "Colors",
         collapsed: true,
       },
-      ...colors.map((rgb, index) => ({
+      {
         type: "expression",
         folderId: "ferrari-colors",
-        id: `ferrari-color-${index}`,
-        latex: colorToLatex(rgb, index),
-      })),
+        id: `ferrari-colors-list`,
+        latex:
+          `P_{all}=` +
+          opnameCallToLatex(
+            "rgb",
+            brackets(colors.map(([r, _g, _b]) => r)),
+            brackets(colors.map(([_r, g, _b]) => g)),
+            brackets(colors.map(([_r, _g, b]) => b))
+          ),
+      },
+      ...colors.map((rgb, index) => {
+        const containedCycle = cycles.find(
+          (cycle) => cycle.rate > 0 && cycle.low <= index && index <= cycle.high
+        );
+        // currently ignore `reversed`
+        return {
+          type: "expression",
+          folderId: "ferrari-colors",
+          id: `ferrari-color-${index}`,
+          latex:
+            `P_{${index}}=P_{all}` +
+            brackets(
+              containedCycle
+                ? opnameCallToLatex(
+                    "mod",
+                    opnameCallToLatex(
+                      "floor",
+                      `\\frac{${60 * containedCycle.rate}t_0}{16384}`
+                    ) + `+${index - containedCycle.low}`,
+                    containedCycle.high - containedCycle.low + 1
+                  ) + `+${containedCycle.low + 1}`
+                : index + 1
+            ),
+        };
+      }),
     ];
     const state = {
       version: 9,
