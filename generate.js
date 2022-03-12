@@ -119,7 +119,8 @@ function getPolygons(pixels, width, height) {
         vertexCount = 0;
       }
       // join up with the first vertex, then add an undefined point
-      currList.push(`W(${polygon.join(",")})`);
+      let min = Math.min(...polygon);
+      currList.push(`W(${polygon.map((x) => x - min).join(",")},${min})`);
       vertexCount += polygon.length + 2;
     }
     if (currList.length > 0) {
@@ -188,7 +189,7 @@ CanvasCycle = {
         type: "expression",
         id: `ferrari-wrap`,
         folderId: "ferrari-helpers",
-        latex: `W(a,b,c,d)=[a,b,c,d,a,[][1]]`,
+        latex: `W(a,b,c,d,A)=A+[a,b,c,d,a,[][1]]`,
       },
       {
         type: "folder",
