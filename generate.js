@@ -132,14 +132,7 @@ function opnameCallToLatex(name, ...args) {
 function polygonToLatex(polygon, width) {
   return opnameCallToLatex(
     "polygon",
-    brackets(
-      pointToLatex(
-        "1+" + opnameCallToLatex("mod", "i", width + 1),
-        opnameCallToLatex("floor", `\\frac{i}{${width + 1}}`)
-      ) +
-        ` \\operatorname{for} i=` +
-        (polygon.length > 1 ? opnameCallToLatex("join", polygon) : polygon)
-    )
+    polygon.length > 1 ? opnameCallToLatex("join", polygon) : polygon
   );
 }
 
@@ -165,9 +158,9 @@ CanvasCycle = {
         type: "text",
         id: `ferrari-info`,
         text:
-          "Jungle Waterfall\n\n" +
+          `${globalThis.name}\n\n` +
           `Original artwork by Mark Ferrari as ILBM file ${filename}, obtained in ` +
-          "JSON form from http://effectgames.com/demos/canvascycle, then " +
+          "JSON from http://effectgames.com/demos/canvascycle, then " +
           "converted to Desmos using http://github.com/jared-hughes/DesmosFerrari.\n\n" +
           `Best viewed at resolutions which are a multiple of ${width}x${height}.\n\n` +
           "Feel free to use the following expression to view the changing palette.",
@@ -194,12 +187,39 @@ CanvasCycle = {
         slider: {
           loopMode: "PLAY_INDEFINITELY",
           isPlaying: true,
+          animationPeriod: 20000,
+        },
+      },
+      {
+        type: "text",
+        id: `ferrari-shift-text`,
+        text: "s: padding around each rectangle to avoid 1-pixel gaps",
+      },
+      {
+        type: "expression",
+        id: `ferrari-shift`,
+        latex: `s=0.3`,
+        slider: {
+          hardMin: true,
+          hardMax: true,
+          min: "0",
+          max: "1",
         },
       },
       {
         type: "expression",
         id: `ferrari-wrap`,
-        latex: `W(a,b,c,d,A)=A+[a,b,c,d,a,[][1]]`,
+        latex:
+          `W\\left(a,b,c,d,A\\right)=` +
+          // Assume a,b,c,d rectangle in order
+          brackets(`(-s,s),(-s,-s),(s,-s),(s,s),(-s,s),(0,0)`) +
+          "+" +
+          brackets(
+            pointToLatex(
+              "1+" + opnameCallToLatex("mod", "i", width + 1),
+              opnameCallToLatex("floor", `\\frac{i}{${width + 1}}`)
+            ) + `\\operatorname{for} i=A+[a,b,c,d,a,[][1]]`
+          ),
       },
       {
         type: "folder",
