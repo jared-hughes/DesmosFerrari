@@ -55,8 +55,11 @@ function XY(x, y) {
   return { x, y };
 }
 
-function flip(i, width, height) {
-  return (i % width) + (height - Math.floor(i / width)) * width;
+function flip(xy, height) {
+  return {
+    x: xy.x,
+    y: height - xy.y,
+  };
 }
 
 /**
@@ -87,12 +90,12 @@ function getPolygons(pixels, width, height) {
       j++;
     }
     // Now, create a rectangle from i to j
-    const start = i_to_xy(i, width);
-    const end = add_xy(i_to_xy(j - 1, width), XY(1, 0));
+    const startXY = flip(i_to_xy(i, width), height);
+    const endXY = flip(add_xy(i_to_xy(j - 1, width), XY(1, 1)), height);
+    // encode for space
+
     polygonsByColor[pixels[i]].push(
-      [start, add_xy(start, XY(0, 1)), add_xy(end, XY(0, 1)), end].map((xy) =>
-        flip(xy_to_i(xy, width + 1), width + 1, height)
-      )
+      xy_to_i(startXY, width + 1) + (width + 1) * height * (endXY.x - startXY.x)
     );
   }
   // Join up polygons of the same pixel color, up to MAX_VERTICES elements
@@ -100,19 +103,15 @@ function getPolygons(pixels, width, height) {
   polygonsByColor.forEach((polygonList, i) => {
     let currList = [];
     let vertexCount = 0;
+    // each polygon is a single number from 0 to ((width+1)*height)**2
     for (let polygon of polygonList) {
-      if (polygon.length + 2 >= MAX_VERTICES) {
-        throw `Polygon longer than ${MAX_VERTICES} vertices`;
-      }
-      if (polygon.length + vertexCount + 2 >= MAX_VERTICES) {
+      if (6 + vertexCount >= MAX_VERTICES) {
         out[i].push(currList);
         currList = [];
         vertexCount = 0;
       }
-      // join up with the first vertex, then add an undefined point
-      let min = Math.min(...polygon);
-      currList.push(`W(${polygon.map((x) => x - min).join(",")},${min})`);
-      vertexCount += polygon.length + 2;
+      currList.push(`${polygon}`);
+      vertexCount += 6;
     }
     if (currList.length > 0) {
       out[i].push(currList);
@@ -130,9 +129,9 @@ function opnameCallToLatex(name, ...args) {
 }
 
 function polygonToLatex(polygon, width) {
-  return opnameCallToLatex(
-    "polygon",
-    polygon.length > 1 ? opnameCallToLatex("join", polygon) : polygon
+  return brackets(
+    opnameCallToLatex("polygon", "W(A)") +
+      `\\operatorname{for}A=[${polygon.join(",")}]`
   );
 }
 
@@ -210,15 +209,24 @@ CanvasCycle = {
         type: "expression",
         id: `ferrari-wrap`,
         latex:
-          `W\\left(a,b,c,d,A\\right)=` +
-          // Assume a,b,c,d rectangle in order
-          brackets(`(-s,s),(-s,-s),(s,-s),(s,s),(-s,s),(0,0)`) +
+          `W\\left(A\\right)=` +
+          brackets(`(-s,s),(s,s),(s,-s),(-s,-s),(-s,s),(0,0)`) +
           "+" +
-          brackets(
-            pointToLatex(
-              "1+" + opnameCallToLatex("mod", "i", width + 1),
-              opnameCallToLatex("floor", `\\frac{i}{${width + 1}}`)
-            ) + `\\operatorname{for} i=A+[a,b,c,d,a,[][1]]`
+          pointToLatex(
+            opnameCallToLatex("mod", "A", width + 1),
+            opnameCallToLatex(
+              "floor",
+              `\\frac{${opnameCallToLatex("mod", "A", (width + 1) * height)}}{${
+                width + 1
+              }}`
+            )
+          ) +
+          "+" +
+          pointToLatex(
+            brackets(`0,1,1,0,0,[][1]`) +
+              "\\cdot " +
+              opnameCallToLatex("floor", `\\frac{A}{${(width + 1) * height}}`),
+            brackets("0,0,-1,-1,0,[][1]")
           ),
       },
       {
